@@ -19,7 +19,7 @@ jobs:
         apk add build-base git bash cmake
 
     - name: Make Release Folder
-      run: makedir -p release
+      run: mkdir -p release
     
     - name: Compile project
       run: make
