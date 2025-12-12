@@ -1,8 +1,6 @@
-# PSP Bluetooth TechDemo [![C/C++ CI](https://github.com/ste2425/PSP-Bluetooth-TechDemo/actions/workflows/c-cpp.yml/badge.svg?branch=next)](https://github.com/ste2425/PSP-Bluetooth-TechDemo/actions/workflows/c-cpp.yml) ![Github latest downloads](https://img.shields.io/github/downloads/ste2425/PSP-Bluetooth-TechDemo/total.svg)
+# PSP Bluetooth Plugin [![C/C++ CI](https://github.com/ste2425/PSP-Bluetooth-Plugin/actions/workflows/c-cpp.yml/badge.svg?branch=next)](https://github.com/ste2425/PSP-Bluetooth-Plugin/actions/workflows/c-cpp.yml) ![Github latest downloads](https://img.shields.io/github/downloads/ste2425/PSP-Bluetooth-Plugin/total.svg)
 
-PSP Bluetooth Tech Demo is a PSP application built using the unofficial PSPSDK and [glib2d (modded)](https://github.com/joel16/gLib2D). The code base for this project is based on the brilliant [CMFileManager](https://github.com/joel16/CMFileManager-PSP) project by *joel16*. It leverages the equally good SIO library from the [Operation Ditto](https://github.com/operation-ditto) project.
-
-The purpose of this homebrew is to demonstrate the `PSP Bluetooth` project and how the PSP can interface with bluetooth controllers.
+Two plugins to provide the use of Bluetooth controllers in PSP games.
 
 ## Acknowledgements
 
@@ -15,19 +13,14 @@ The work ive done is just a thin layer ontop of work many other people have done
 
 **Features:**
 
-- PONG demo demonstrating the use of two controllers
+- Provides controller suport for use in game and the XMB
+- Upto 4 controllers (for homebrew that makes use of them)
+- Suports rumble (for homebrew that makes use of it)
+- Supports LED colour and player LED indicators (for homebrew that makes use of it)
+- Optional Overlay plugin to enable pairing and magament of controllers.
 
-[![Watch the video](https://img.youtube.com/vi/E2xcQoVHV1s/default.jpg)](https://youtu.be/E2xcQoVHV1s)
+---
 
-- LED Colour demo demonstrating setting the colour of controllers which support LEDs (DualSense etc)
+⚠️ This is very early development. Ive had it working but its unstable.
 
-[![Watch the video](https://img.youtube.com/vi/3fGxJrmux3g/default.jpg)](https://youtu.be/3fGxJrmux3g)
-- Vibration demo. Demonstrating the use of setting rumble including controllers which support srong and weak rumble.
-- Player LED demo. Demonstrating setting the player LED of conrollers.
-- Ping. Demonstratings pinging the ESP32 to be sure if the `PSP Bluetooth Dongle` is connected.
-- Controller type detection. Demonstrates requesting controller type and bettery information.
-
-[![Watch the video](https://img.youtube.com/vi/i-L--a_C-jo/default.jpg)](https://youtu.be/i-L--a_C-jo)
-- Enabling/disabling new connections. Demonstrates enabling new controller connections when pairing.
-
-TODO add pictures and achnowledgements and setup instructions
+---

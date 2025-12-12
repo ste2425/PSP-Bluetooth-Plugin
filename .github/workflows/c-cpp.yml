@@ -17,29 +17,31 @@ jobs:
     - name: Install dependencies
       run: |
         apk add build-base git bash cmake
+
+    - name: Make Release Folder
+      run: makedir -p release
     
     - name: Compile project
       run: make
 
     - name: Prepare artifact folder
       run: |
-        mkdir -p PSPBluetoothTechDemo
-        cp fs_driver/fs_driver.prx PSPBluetoothTechDemo/
-        cp sio_driver/sio_driver.prx PSPBluetoothTechDemo/
-        cp app/EBOOT.PBP PSPBluetoothTechDemo/
+        mkdir -p PSPBluetoothPlugin
+        cp release/bt_ctr_driver.prx PSPBluetoothPlugin/
+        cp release/bt_ctr_overlay.prx PSPBluetoothPlugin/
 
     - uses: actions/upload-artifact@v4
       with:
-        name: PSPBluetoothTechDemo
-        path: PSPBluetoothTechDemo/
+        name: PSPBluetoothPlugin
+        path: PSPBluetoothPlugin/
 
     - uses: montudor/action-zip@v1
       with:
-        args: zip -qq -r PSPBluetoothTechDemo.zip PSPBluetoothTechDemo
+        args: zip -qq -r PSPBluetoothPlugin.zip PSPBluetoothPlugin
 
     - name: Release
       uses: softprops/action-gh-release@v2
       if: github.ref_type == 'tag'
       with:
         prerelease: true
-        files: PSPBluetoothTechDemo.zip
+        files: PSPBluetoothPlugin.zip
