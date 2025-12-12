@@ -1,0 +1,45 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ next ]
+    tags: '**' # Trigger on tags for releases
+  pull_request:
+    branches: [ next ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: pspdev/pspdev:latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        apk add build-base git bash cmake
+    
+    - name: Compile project
+      run: make
+
+    - name: Prepare artifact folder
+      run: |
+        mkdir -p PSPBluetoothTechDemo
+        cp fs_driver/fs_driver.prx PSPBluetoothTechDemo/
+        cp sio_driver/sio_driver.prx PSPBluetoothTechDemo/
+        cp app/EBOOT.PBP PSPBluetoothTechDemo/
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: PSPBluetoothTechDemo
+        path: PSPBluetoothTechDemo/
+
+    - uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -r PSPBluetoothTechDemo.zip PSPBluetoothTechDemo
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      if: github.ref_type == 'tag'
+      with:
+        prerelease: true
+        files: PSPBluetoothTechDemo.zip
