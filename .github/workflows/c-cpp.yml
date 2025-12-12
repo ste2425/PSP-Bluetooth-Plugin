@@ -2,10 +2,10 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ next ]
+    branches: [ develop ]
     tags: '**' # Trigger on tags for releases
   pull_request:
-    branches: [ next ]
+    branches: [ develop ]
 
 jobs:
   build:
