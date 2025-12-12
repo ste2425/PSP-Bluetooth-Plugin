@@ -1,4 +1,4 @@
-# PSP Bluetooth Plugin [![C/C++ CI](https://github.com/ste2425/PSP-Bluetooth-Plugin/actions/workflows/c-cpp.yml/badge.svg?branch=next)](https://github.com/ste2425/PSP-Bluetooth-Plugin/actions/workflows/c-cpp.yml) ![Github latest downloads](https://img.shields.io/github/downloads/ste2425/PSP-Bluetooth-Plugin/total.svg)
+# PSP Bluetooth Plugin [![C/C++ CI](https://github.com/ste2425/PSP-Bluetooth-Plugin/actions/workflows/c-cpp.yml/badge.svg?branch=develop)](https://github.com/ste2425/PSP-Bluetooth-Plugin/actions/workflows/c-cpp.yml) ![Github latest downloads](https://img.shields.io/github/downloads/ste2425/PSP-Bluetooth-Plugin/total.svg)
 
 Two plugins to provide the use of Bluetooth controllers in PSP games.
 
