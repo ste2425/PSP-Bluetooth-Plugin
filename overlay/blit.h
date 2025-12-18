@@ -51,6 +51,7 @@ int blit_string(int sx, int sy, const char *msg);
 int blit_string_ctr(int sy, const char *msg);
 int blit_string_windowed_ctr(int sy, int sx, int w, const char *msg);
 void blit_rect_fill(int sx, int sy, int w, int h);
+void blit_image(const unsigned char *imageData, int posX, int posY, int width, int height);
 
 int load_external_font(const char *file);
 void release_font(void);

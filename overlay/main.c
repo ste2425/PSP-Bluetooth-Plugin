@@ -11,6 +11,7 @@
 #include "blit.h"
 #include "kubridge.h"
 #include "menu.h"
+#include "scepaf.h"
 
 /// Checks whether a result code indicates success.
 #define R_SUCCEEDED(res) ((res) >= 0)
@@ -33,6 +34,18 @@ static int LoadModule(const char *path) {
     return modID;
 }
 
+int write(const char *text) {
+    SceUID fd = sceIoOpen("ms0:/SEPLUGINS/btr_ctr_driver2.log", PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
+    if (fd < 0) {
+        return fd; // error opening file
+    }
+
+    int result = sceIoWrite(fd, text, scePaf_strlen(text));
+    sceIoClose(fd);
+    
+    return result;
+}
+
 static int file_exists(const char *path) {
     SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0);
     
@@ -45,17 +58,32 @@ int thid;
 int controllerInfoThid;
 int running;
 
+uint8_t controllerPollingThreadStarted = 0;
+uint8_t controllerPollingThreadAwake = 0;
+
 // Thread that runs in background every 2 seconds to check status on connected controllers.
 // TODO make it only run when overlay open, unless we want a low battery icon to appear?
 // TODO maybe use VTimers rather than loop and sleep?
 int controllerPolling_thread(SceSize args, void *argp) {
     MenuState *menuState = (MenuState*)menu_getPointer();
 
-    while (running) {            
-        BtCtrDriverLoadControllerInfo(0, &menuState->controllers[0]);
-        BtCtrDriverLoadControllerInfo(1, &menuState->controllers[1]);  
-        BtCtrDriverLoadControllerInfo(2, &menuState->controllers[2]);   
-        BtCtrDriverLoadControllerInfo(3, &menuState->controllers[3]);    
+    while (running) {          
+        // TODO maybe i need to rething this with the running?
+        // but the timeout should handle but when unloading module.
+        // who knows, i have no idea what im doing.
+        if (!controllerPollingThreadAwake) {
+            sceKernelSleepThreadCB();
+        }
+
+        auto resp = BtCtrDriverLoadControllerInfo(0, &menuState->controllers[0]);
+        menuAddTry();
+        if(resp != 0xF && resp != 0xB) {
+            menuAddError();
+         //menuSetError(resp);
+        // write(buffer);
+        }
+       // BtCtrDriverLoadControllerInfo(2, &menuState->controllers[2]);   
+        //BtCtrDriverLoadControllerInfo(3, &menuState->controllers[3]);    
         
         sceKernelDelayThread(PAUSE);
     }
@@ -101,8 +129,22 @@ int main_thread(SceSize args, void *argp){
         // Toggle the menu
         if (pad.Buttons & PSP_CTRL_TRIANGLE && !(prevPad.Buttons & PSP_CTRL_TRIANGLE)) {
             // If we are opening the menu get the initial state of new connections.
-            if (!menuState->menuOpen)
+            if (!menuState->menuOpen) {
                 menuState->newConnectionsEnabled = BtCtrDriverNewConnectionsEnabled();
+
+                if (controllerInfoThid >= 0) {
+                    controllerPollingThreadAwake = 1;
+
+                    if (!controllerPollingThreadStarted) {
+                        controllerPollingThreadStarted = 1;
+                        sceKernelStartThread(controllerInfoThid, args, argp);
+                    } else {
+                        sceKernelWakeupThread(controllerInfoThid);
+                    }
+                }
+            } else {
+                controllerPollingThreadAwake = 0;
+            }
             
             menu_toggle();
         }
@@ -122,13 +164,12 @@ int module_start(SceSize args, void *argp){
     running = 0;
 
     thid = sceKernelCreateThread("main", main_thread, 0x10, 4*1024, PSP_THREAD_ATTR_USER, NULL);
-    //controllerInfoThid = sceKernelCreateThread("controller_polling", controllerPolling_thread, 0x10, 4*1024, PSP_THREAD_ATTR_USER, NULL);
+    controllerInfoThid = sceKernelCreateThread("controller_polling", controllerPolling_thread, 0x10, 4*1024, PSP_THREAD_ATTR_USER, NULL);
     
-    if (thid >= 0 ){//&& controllerInfoThid >= 0){
+    if (thid >= 0 ){
         running = 1;
 
         sceKernelStartThread(thid, args, argp);
-        //sceKernelStartThread(controllerInfoThid, args, argp);
     }
     return 0;
 }

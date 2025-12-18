@@ -241,3 +241,56 @@ int blit_get_string_width(char *msg) {
     font_Data *font = (font_Data*)font_data_pointer();
     return scePaf_strlen(msg) * font->width;
 }
+
+void blit_image(const unsigned char *imageData, int posX, int posY, int width, int height)
+{           
+    for (int i = 0; i < height; i++){
+        // compute row pointers
+        u32* dst_row = gfx.vram32 + (posY + i) * gfx.bufferwidth + posX;
+        const unsigned char* src_row = imageData + (i * width * 4);
+        for (int j = 0; j < width; j++){
+            const unsigned char sr = src_row[j*4 + 0];
+            const unsigned char sg = src_row[j*4 + 1];
+            const unsigned char sb = src_row[j*4 + 2];
+            const unsigned char sa = src_row[j*4 + 3];
+
+            if (sa == 0){
+                // fully transparent: do nothing
+                continue;
+            } else if (sa == 255){
+                // fully opaque: write source directly to VRAM in ABGR format
+                // VRAM expects ABGR 0xAABBGGRR, we use full alpha 0xFF
+                dst_row[j] = (0xFFU << 24) | ((unsigned int)sb << 16) | ((unsigned int)sg << 8) | (unsigned int)sr;
+            } else {
+                // Two-step composite:
+                // 1) composite_bg = bg_color * bg_alpha + vram * (1 - bg_alpha)
+                // 2) out = src * sa + composite_bg * (1 - sa)
+                // This ensures the image's semi-transparent pixels show the
+                // background color blended with the current VRAM content.
+
+                unsigned int dstpix = dst_row[j];
+                unsigned int vr = (dstpix) & 0xFF;
+                unsigned int vg = (dstpix >> 8) & 0xFF;
+                unsigned int vb = (dstpix >> 16) & 0xFF;
+
+                u32 bgcol = gfx.bg_color;
+                unsigned int bga = (bgcol >> 24) & 0xFF;
+                unsigned int br = (bgcol) & 0xFF;
+                unsigned int bg = (bgcol >> 8) & 0xFF;
+                unsigned int bb = (bgcol >> 16) & 0xFF;
+
+                // composite_bg channels
+                unsigned int comp_r = (bga * br + (255 - bga) * vr) / 255;
+                unsigned int comp_g = (bga * bg + (255 - bga) * vg) / 255;
+                unsigned int comp_b = (bga * bb + (255 - bga) * vb) / 255;
+
+                unsigned int inv_a = 255 - sa;
+                unsigned int out_r = (sa * sr + inv_a * comp_r) / 255;
+                unsigned int out_g = (sa * sg + inv_a * comp_g) / 255;
+                unsigned int out_b = (sa * sb + inv_a * comp_b) / 255;
+
+                dst_row[j] = (0xFFU << 24) | (out_b << 16) | (out_g << 8) | out_r;
+            }
+        }
+    }
+}

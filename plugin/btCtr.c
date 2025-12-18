@@ -4,14 +4,39 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "util.h"
+#include "scepaf.h"
+
 #define BTCTR_CONTROLLER_COUNT 1
-#define LOG_PATH "ms0:/SEPLUGINS/btr_ctr_driver.log"
 
 //
 // Globals
 //
 static BTCtr liveControllers[BTCTR_CONTROLLER_COUNT];
 static SceUID commandSemaId = -1;
+static SceUID commandEventId = -1;
+#define COMMAND_READY_EVENT  		0x02
+static uint8_t inProgress = 0;
+static int servicingNext = 0;
+static int queue = 0;
+
+void WaitForCommand() {
+    unsigned int k1 = pspSdkSetK1(0);
+
+    int resp = sceKernelWaitEventFlag(commandEventId, COMMAND_READY_EVENT, PSP_EVENT_WAITOR | PSP_EVENT_WAITCLEAR, nullptr, nullptr);
+
+    pspSdkSetK1(k1);
+}
+
+void WaitForTicket(int ticket) {
+    while(ticket != servicingNext) {
+        WaitForCommand();
+    }
+}
+
+void TriggerCommandDone() {       
+    sceKernelSetEventFlag(commandEventId, COMMAND_READY_EVENT);
+}
 
 //
 // Hoists
@@ -25,24 +50,20 @@ uint8_t sendCommand(
     int responseSize
 );
 void loadControllerData(uint8_t controllerIndex);
-int write(const char *filename, const char *text);
 
 int	snprintf (char *__restrict, size_t, const char *__restrict, ...)
                _ATTRIBUTE ((__format__ (__printf__, 3, 4)));
 
-void removeLog(const char *filename) {
-    sceIoRemove(filename);
-}
 
 void BTCtrSetup() {
-    removeLog(LOG_PATH);
-
+	commandEventId = sceKernelCreateEventFlag("TESTTTT", 0, 0, 0);
     commandSemaId = sceKernelCreateSema("BTCTRSEMA", 0, 1, 1, NULL);
 
-    pspUARTInit(57600);
+    pspUARTInit(38400);
 }
 
 void BTCtrTerminate() {
+    sceKernelDeleteEventFlag(commandEventId);
     sceKernelDeleteSema(commandSemaId);
     pspUARTTerminate();
 }
@@ -91,17 +112,13 @@ uint8_t BTCtrLoadControllerInfo(uint8_t controllerIndex, ControllerInfo *info) {
         info->connected = true;
         info->controllerModel = responseBuffer[0];
         info->batteryLevel = responseBuffer[1];
-        
-        return 1;
     } else if (response == RESPONSE_CONTROLLER_NOT_FOUND) {
         info->connected = false;
         info->batteryLevel = 0;
         info->controllerModel = CONTROLLER_TYPE_None;
-
-        return 1;
-    } else {
-        return 0;
     }
+
+    return response;
 }
 
 uint8_t BTCtrPing() {
@@ -146,7 +163,7 @@ void loadControllerData(uint8_t controllerIndex) {
     liveControllers[controllerIndex].connected = false;
 }   
 
-uint8_t sendCommand(
+uint8_t _sendCommand(
     uint8_t command, 
     uint8_t* commandArguments, 
     uint8_t commandArgumentsSize, 
@@ -155,8 +172,7 @@ uint8_t sendCommand(
     int responseSize
 ) {
 
-    sceKernelWaitSema(commandSemaId, 1, NULL);
-
+    //sceKernelWaitSema(commandSemaId, 1, NULL);
     pspUARTResetRingBuffer();
 
     // send command and any command arguments
@@ -168,6 +184,10 @@ uint8_t sendCommand(
     }
 
     sceKernelDelayThread(6000);
+    /*
+        TODO use pspUARTWaitForData to be more efficient.
+        However tried, first usage works, subsiquent timeout with no data. Need to investigate.
+    */
 
     int status = pspUARTRead();
     //TODO hadle -1
@@ -177,8 +197,7 @@ uint8_t sendCommand(
         responseBuffer == nullptr ||
         responseSize == 0
     ) {
-        sceKernelSignalSema(commandSemaId, 1);
-
+    //sceKernelSignalSema(commandSemaId, 1);
         return status;
     }
 
@@ -186,7 +205,7 @@ uint8_t sendCommand(
 
     // not enough response data returned, error
     if (recievedDataCount < responseSize) {
-        sceKernelSignalSema(commandSemaId, 1);
+    //sceKernelSignalSema(commandSemaId, 1);
         return RESONSE_NOT_ENOUGH_DATA_RETURNED;
     }
 
@@ -195,10 +214,48 @@ uint8_t sendCommand(
         responseBuffer[i] = pspUARTRead();
     }
 
-    sceKernelSignalSema(commandSemaId, 1);
-
+    //sceKernelSignalSema(commandSemaId, 1);
     return status;
 }
+
+uint8_t sendCommand(
+    uint8_t command, 
+    uint8_t* commandArguments, 
+    uint8_t commandArgumentsSize, 
+    uint8_t successResponseCode, 
+    int* responseBuffer, 
+    int responseSize
+) 
+{
+    auto ticket = queue + 1;
+    queue++;
+
+    if (inProgress) {
+        char bufff[54];
+        scePaf_sprintf(bufff, "Waiting for: %d", ticket);
+        Util_writeLog(bufff);
+        WaitForTicket(ticket);
+    }
+
+        inProgress = true;
+    char buff[54];
+    scePaf_sprintf(buff, "servicing: %d", servicingNext);
+    Util_writeLog(buff);
+        auto result = _sendCommand(
+            command,
+            commandArguments,
+            commandArgumentsSize,
+            successResponseCode,
+            responseBuffer,
+            responseSize
+        );
+        servicingNext++;
+        inProgress = false;
+        TriggerCommandDone();
+
+    return result;
+}
+
 
 uint8_t BTCtrEnableConnections() {
     uint8_t response = sendCommand(
@@ -222,15 +279,3 @@ uint8_t BTCtrDisableConnections() {
     return response;
 }
 
-// Used for debugging. For some reason does not run when method execute from Overlay plugin.
-int write(const char *filename, const char *text) {
-    SceUID fd = sceIoOpen(filename, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
-    if (fd < 0) {
-        return fd; // error opening file
-    }
-
-    int result = sceIoWrite(fd, text, strlen(text));
-    sceIoClose(fd);
-    
-    return result;
-}

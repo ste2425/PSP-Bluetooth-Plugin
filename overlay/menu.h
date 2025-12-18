@@ -21,3 +21,6 @@ void menu_show();
 void menu_hide();
 void menu_render();
 void menu_toggle();
+void menuAddError();
+void menuAddTry();
+void menuSetError(int count);
