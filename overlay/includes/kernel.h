@@ -20,7 +20,8 @@ typedef struct {
 //sio
 extern uint8_t BtCtrDriverEnableNewConnections(uint8_t enable);
 extern uint8_t BtCtrDriverNewConnectionsEnabled();
-extern uint8_t BtCtrDriverLoadControllerInfo(uint8_t controllerIndex, ControllerInfo *info);
+extern ControllerInfo BtCtrDriverLoadControllerInfo(uint8_t controllerIndex);
+extern void BTCtrDriverSetControllerInfoPolling(bool poll);
 
 #if defined (__cplusplus)
 }

@@ -4,14 +4,21 @@
 #include <string.h>
 #include <stdio.h>
 
-#define BTCTR_CONTROLLER_COUNT 1
-#define LOG_PATH "ms0:/SEPLUGINS/btr_ctr_driver.log"
+#include "util.h"
+#include "scepaf.h"
+
+#define BTCTR_CONTROLLER_COUNT 4
 
 //
 // Globals
 //
 static BTCtr liveControllers[BTCTR_CONTROLLER_COUNT];
-static SceUID commandSemaId = -1;
+static ControllerInfo liveControllerState[BTCTR_CONTROLLER_COUNT];
+bool enableNewConnectionsPending = false;
+bool disableNewConnectionsPending = false;
+bool connectionsCurrentlyEnabled = false;
+bool getConnectionsState = false;
+bool pollControllerInfo = false;
 
 //
 // Hoists
@@ -25,25 +32,19 @@ uint8_t sendCommand(
     int responseSize
 );
 void loadControllerData(uint8_t controllerIndex);
-int write(const char *filename, const char *text);
 
 int	snprintf (char *__restrict, size_t, const char *__restrict, ...)
                _ATTRIBUTE ((__format__ (__printf__, 3, 4)));
 
-void removeLog(const char *filename) {
-    sceIoRemove(filename);
+void BTCtrSetControllerInfoPolling(bool poll) {
+    pollControllerInfo = poll;
 }
 
 void BTCtrSetup() {
-    removeLog(LOG_PATH);
-
-    commandSemaId = sceKernelCreateSema("BTCTRSEMA", 0, 1, 1, NULL);
-
-    pspUARTInit(57600);
+    pspUARTInit(38400);
 }
 
 void BTCtrTerminate() {
-    sceKernelDeleteSema(commandSemaId);
     pspUARTTerminate();
 }
 
@@ -53,11 +54,28 @@ void BTCtrUpdate() {
     }
 }
 
+void BTCTRTriggerNewConnections() {
+    enableNewConnectionsPending = true;
+    disableNewConnectionsPending = false;
+}
+void BTCTRTriggerNoNewConnetions() {
+    enableNewConnectionsPending = false;
+    disableNewConnectionsPending = true;
+}
+
 BTCtr BTCtrGetControllerState(uint8_t controllerIndex) {
     return liveControllers[controllerIndex];
 }
 
+ControllerInfo BTCtrGetControllerInfo(uint8_t controllerIndex) {
+    return liveControllerState[controllerIndex];
+}
+
 uint8_t BTCtrNewConnectionsEnabled() {
+    return connectionsCurrentlyEnabled;
+}
+
+void BTCtrNewConnectionsEnabledInternal() {
     int responseBuffer[1] = {0};
     uint8_t responseBufferSize = 1;
 
@@ -68,14 +86,10 @@ uint8_t BTCtrNewConnectionsEnabled() {
         responseBuffer, responseBufferSize
     ); 
 
-    if (response == RESPONSE_NEWCONNECONNECTIONSENABLED) {
-        return responseBuffer[0];
-    } else {
-        return 0;
-    }
+    connectionsCurrentlyEnabled = response == RESPONSE_NEWCONNECONNECTIONSENABLED;
 }
 
-uint8_t BTCtrLoadControllerInfo(uint8_t controllerIndex, ControllerInfo *info) {
+uint8_t BTCtrLoadControllerInfo(uint8_t controllerIndex) {
     int responseBuffer[2] = {0};
     uint8_t responseBufferSize = 2;
     uint8_t commandArgs[1] = {controllerIndex};
@@ -88,20 +102,16 @@ uint8_t BTCtrLoadControllerInfo(uint8_t controllerIndex, ControllerInfo *info) {
     );
 
     if (response == RESPONSE_INFO_OK) {
-        info->connected = true;
-        info->controllerModel = responseBuffer[0];
-        info->batteryLevel = responseBuffer[1];
-        
-        return 1;
+        liveControllerState[controllerIndex].connected = true;
+        liveControllerState[controllerIndex].controllerModel = responseBuffer[0];
+        liveControllerState[controllerIndex].batteryLevel = responseBuffer[1];
     } else if (response == RESPONSE_CONTROLLER_NOT_FOUND) {
-        info->connected = false;
-        info->batteryLevel = 0;
-        info->controllerModel = CONTROLLER_TYPE_None;
-
-        return 1;
-    } else {
-        return 0;
+        liveControllerState[controllerIndex].connected = false;
+        liveControllerState[controllerIndex].batteryLevel = 0;
+        liveControllerState[controllerIndex].controllerModel = CONTROLLER_TYPE_None;
     }
+
+    return response;
 }
 
 uint8_t BTCtrPing() {
@@ -146,7 +156,7 @@ void loadControllerData(uint8_t controllerIndex) {
     liveControllers[controllerIndex].connected = false;
 }   
 
-uint8_t sendCommand(
+uint8_t _sendCommand(
     uint8_t command, 
     uint8_t* commandArguments, 
     uint8_t commandArgumentsSize, 
@@ -155,8 +165,7 @@ uint8_t sendCommand(
     int responseSize
 ) {
 
-    sceKernelWaitSema(commandSemaId, 1, NULL);
-
+    //sceKernelWaitSema(commandSemaId, 1, NULL);
     pspUARTResetRingBuffer();
 
     // send command and any command arguments
@@ -168,6 +177,10 @@ uint8_t sendCommand(
     }
 
     sceKernelDelayThread(6000);
+    /*
+        TODO use pspUARTWaitForData to be more efficient.
+        However tried, first usage works, subsiquent timeout with no data. Need to investigate.
+    */
 
     int status = pspUARTRead();
     //TODO hadle -1
@@ -177,8 +190,7 @@ uint8_t sendCommand(
         responseBuffer == nullptr ||
         responseSize == 0
     ) {
-        sceKernelSignalSema(commandSemaId, 1);
-
+    //sceKernelSignalSema(commandSemaId, 1);
         return status;
     }
 
@@ -186,7 +198,7 @@ uint8_t sendCommand(
 
     // not enough response data returned, error
     if (recievedDataCount < responseSize) {
-        sceKernelSignalSema(commandSemaId, 1);
+    //sceKernelSignalSema(commandSemaId, 1);
         return RESONSE_NOT_ENOUGH_DATA_RETURNED;
     }
 
@@ -195,10 +207,31 @@ uint8_t sendCommand(
         responseBuffer[i] = pspUARTRead();
     }
 
-    sceKernelSignalSema(commandSemaId, 1);
-
+    //sceKernelSignalSema(commandSemaId, 1);
     return status;
 }
+
+uint8_t sendCommand(
+    uint8_t command, 
+    uint8_t* commandArguments, 
+    uint8_t commandArgumentsSize, 
+    uint8_t successResponseCode, 
+    int* responseBuffer, 
+    int responseSize
+) 
+{
+        auto result = _sendCommand(
+            command,
+            commandArguments,
+            commandArgumentsSize,
+            successResponseCode,
+            responseBuffer,
+            responseSize
+        );
+
+    return result;
+}
+
 
 uint8_t BTCtrEnableConnections() {
     uint8_t response = sendCommand(
@@ -222,15 +255,42 @@ uint8_t BTCtrDisableConnections() {
     return response;
 }
 
-// Used for debugging. For some reason does not run when method execute from Overlay plugin.
-int write(const char *filename, const char *text) {
-    SceUID fd = sceIoOpen(filename, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
-    if (fd < 0) {
-        return fd; // error opening file
+void BTCtrLoop() 
+{
+    // update controller state
+    BTCtrUpdate();
+
+    if (pollControllerInfo) {
+        // update controller info state
+        for (uint8_t i = 0; i < BTCTR_CONTROLLER_COUNT; ++i) {
+            BTCtrLoadControllerInfo(i);
+        }
     }
 
-    int result = sceIoWrite(fd, text, strlen(text));
-    sceIoClose(fd);
-    
-    return result;
+    if (getConnectionsState) {
+        BTCtrNewConnectionsEnabledInternal();
+        getConnectionsState = false;
+    }
+
+    if (enableNewConnectionsPending) {
+        auto res = BTCtrEnableConnections();
+
+        if (res == RESPONSE_NEWCON_OK) {
+            connectionsCurrentlyEnabled = true;
+            enableNewConnectionsPending = false;
+        }
+    }
+
+    if (disableNewConnectionsPending) {
+        auto res = BTCtrDisableConnections();
+
+        if (res == RESPONSE_DISNEWCON_OK) {
+            connectionsCurrentlyEnabled = false;
+            disableNewConnectionsPending = false;
+        }
+    }
+}
+
+void BTCtrWaitLoopDelay() {
+    sceKernelDelayThread(10000); // 10 ms
 }

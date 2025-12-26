@@ -69,7 +69,7 @@ blit_Gfx* blit_gfx_pointer(void) {
 }
 
 
-int blit_setupOld(void) {
+int blit_setup(void) {
     int unk;
     sceDisplayGetMode(&unk, &gfx.width, &gfx.height);
     sceDisplayGetFrameBuf((void*)&gfx.vram32, &gfx.bufferwidth, &gfx.pixelformat, PSP_DISPLAY_SETBUF_NEXTFRAME);
@@ -81,7 +81,7 @@ int blit_setupOld(void) {
     return 0;
 }
 
-int blit_setup()
+int blit_setupold()
 {
     int ret = sceDisplayGetFrameBuf((void*)&gfx.vram32, &gfx.bufferwidth, &gfx.pixelformat, PSP_DISPLAY_SETBUF_NEXTHSYNC);
 
@@ -189,7 +189,7 @@ int blit_string_ctr(int sy,const char *msg) {
     return blit_string((gfx.width - scePaf_strlen(msg) * font->width) / 2, sy, msg);
 }
 
-int blit_string_windowed_ctr(int sy, int sx, int w, const char *msg) {
+int blit_string_windowed_ctr(int sx, int sy, int w, const char *msg) {
     font_Data *font = (font_Data*)font_data_pointer();
 
     int msgWidth = scePaf_strlen(msg) * font->width;
@@ -240,4 +240,108 @@ void blit_rect_fill(int sx, int sy, int w, int h) {
 int blit_get_string_width(char *msg) {
     font_Data *font = (font_Data*)font_data_pointer();
     return scePaf_strlen(msg) * font->width;
+}
+
+void blit_button(char *msg, int posX, int posY, int animFrame) {
+    font_Data *font = (font_Data*)font_data_pointer();
+
+    int textWidth = blit_get_string_width(msg);
+    int buttonWidth = textWidth + 4;
+    int buttonHeight = font->height + 4;
+   // int buttonHeight = 
+
+    if (animFrame != 0) {
+        //border top
+        blit_rect_fill(posX + 1, posY - animFrame, buttonWidth - 1, 1);
+        //border left
+        blit_rect_fill(posX - animFrame, posY, 1, buttonHeight);
+    }
+
+    blit_string_windowed_ctr(posX + 1, posY + 2, buttonWidth, msg);
+    
+    if (animFrame != 0) {
+        //border bottom
+        blit_rect_fill(posX + 1, posY + (buttonHeight - 1) + animFrame, buttonWidth - 1, 1);
+        //border right
+        blit_rect_fill(posX + buttonWidth + animFrame, posY, 1, buttonHeight);
+    }
+}
+
+void blit_image_windowed(const unsigned char *imageData, int imageHeight, int imageWidth, int posX, int poxY, int windowWidth) {
+    int xOffset = (windowWidth - imageWidth) / 2;
+
+    blit_rect_fill(posX, poxY, xOffset, imageHeight);
+
+    blit_image(imageData, posX + xOffset, poxY, imageWidth, imageHeight);
+
+    blit_rect_fill(posX + xOffset + imageWidth, poxY, xOffset, imageHeight);
+}
+
+void blit_image(const unsigned char *imageData, int posX, int posY, int width, int height)
+{           
+    for (int i = 0; i < height; i++){
+        // compute row pointers
+        u32* dst_row = gfx.vram32 + (posY + i) * gfx.bufferwidth + posX;
+        const unsigned char* src_row = imageData + (i * width * 4);
+        for (int j = 0; j < width; j++){
+            const unsigned char sr = src_row[j*4 + 0];
+            const unsigned char sg = src_row[j*4 + 1];
+            const unsigned char sb = src_row[j*4 + 2];
+            const unsigned char sa = src_row[j*4 + 3];
+
+            if (sa == 0){
+                // fully transparent: apply background color
+                u32 bgcol = gfx.bg_color;
+                unsigned int bga = (bgcol >> 24) & 0xFF;
+                unsigned int br = (bgcol) & 0xFF;
+                unsigned int bg = (bgcol >> 8) & 0xFF;
+                unsigned int bb = (bgcol >> 16) & 0xFF;
+
+                unsigned int dstpix = dst_row[j];
+                unsigned int vr = (dstpix) & 0xFF;
+                unsigned int vg = (dstpix >> 8) & 0xFF;
+                unsigned int vb = (dstpix >> 16) & 0xFF;
+
+                // composite: bg_color with alpha over current VRAM
+                unsigned int comp_r = (bga * br + (255 - bga) * vr) / 255;
+                unsigned int comp_g = (bga * bg + (255 - bga) * vg) / 255;
+                unsigned int comp_b = (bga * bb + (255 - bga) * vb) / 255;
+
+                dst_row[j] = (0xFFU << 24) | (comp_b << 16) | (comp_g << 8) | comp_r;
+            } else if (sa == 255){
+                // fully opaque: write source directly to VRAM in ABGR format
+                // VRAM expects ABGR 0xAABBGGRR, we use full alpha 0xFF
+                dst_row[j] = (0xFFU << 24) | ((unsigned int)sb << 16) | ((unsigned int)sg << 8) | (unsigned int)sr;
+            } else {
+                // Two-step composite:
+                // 1) composite_bg = bg_color * bg_alpha + vram * (1 - bg_alpha)
+                // 2) out = src * sa + composite_bg * (1 - sa)
+                // This ensures the image's semi-transparent pixels show the
+                // background color blended with the current VRAM content.
+
+                unsigned int dstpix = dst_row[j];
+                unsigned int vr = (dstpix) & 0xFF;
+                unsigned int vg = (dstpix >> 8) & 0xFF;
+                unsigned int vb = (dstpix >> 16) & 0xFF;
+
+                u32 bgcol = gfx.bg_color;
+                unsigned int bga = (bgcol >> 24) & 0xFF;
+                unsigned int br = (bgcol) & 0xFF;
+                unsigned int bg = (bgcol >> 8) & 0xFF;
+                unsigned int bb = (bgcol >> 16) & 0xFF;
+
+                // composite_bg channels
+                unsigned int comp_r = (bga * br + (255 - bga) * vr) / 255;
+                unsigned int comp_g = (bga * bg + (255 - bga) * vg) / 255;
+                unsigned int comp_b = (bga * bb + (255 - bga) * vb) / 255;
+
+                unsigned int inv_a = 255 - sa;
+                unsigned int out_r = (sa * sr + inv_a * comp_r) / 255;
+                unsigned int out_g = (sa * sg + inv_a * comp_g) / 255;
+                unsigned int out_b = (sa * sb + inv_a * comp_b) / 255;
+
+                dst_row[j] = (0xFFU << 24) | (out_b << 16) | (out_g << 8) | out_r;
+            }
+        }
+    }
 }

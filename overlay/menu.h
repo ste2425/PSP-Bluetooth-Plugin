@@ -13,6 +13,8 @@ typedef struct _menuState{
     SceCtrlData padState;
     SceCtrlData prevPadState;
     ControllerInfo controllers[4];
+    uint8_t activeController;
+    uint8_t focussedController;
 }MenuState;
 
 MenuState* menu_getPointer(void);
@@ -21,3 +23,6 @@ void menu_show();
 void menu_hide();
 void menu_render();
 void menu_toggle();
+void menuAddError();
+void menuAddTry();
+void menuSetError(int count);

@@ -49,11 +49,13 @@ int blit_setup(void);
 void blit_set_color(int fg_col, int bg_col);
 int blit_string(int sx, int sy, const char *msg);
 int blit_string_ctr(int sy, const char *msg);
-int blit_string_windowed_ctr(int sy, int sx, int w, const char *msg);
+int blit_string_windowed_ctr(int sx, int sy, int w, const char *msg);
 void blit_rect_fill(int sx, int sy, int w, int h);
-
+void blit_image(const unsigned char *imageData, int posX, int posY, int width, int height);
+void blit_image_windowed(const unsigned char *imageData, int imageHeight, int imageWidth, int posX, int poxY, int windowWidth);
 int load_external_font(const char *file);
 void release_font(void);
+void blit_button(char *msg, int posX, int posY, int animFrame);
 
 
 // Returns size of string in pixels
