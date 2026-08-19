@@ -21,8 +21,8 @@ jobs:
     - name: Make Release Folder
       run: mkdir -p release
     
-    - name: Compile Overlay
-      run: cd overlay && ./compile.sh
+   # - name: Compile Overlay
+    #  run: cd overlay && ./compile.sh
 
     - name: Compile Plugin
       run: cd pluin && make
