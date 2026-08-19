@@ -3,6 +3,8 @@
 
 TARGET = bt_ctr_overlay
 OBJS = main.o graphic.o exports.o libs/bt_ctr_driver.o
+IMAGE_HEADER = generated/image_assets.h
+IMAGE_SOURCES = $(wildcard assets/*.png)
 
 USE_KERNEL_LIBC = 1
 USE_KERNEL_LIBS = 1
@@ -23,3 +25,11 @@ include $(PSPSDK)/lib/build_prx.mak
 
 all:
 	mv bt_ctr_overlay.prx "../release/"
+
+main.o graphic.o: $(IMAGE_HEADER)
+
+$(IMAGE_HEADER): $(IMAGE_SOURCES) tools/png_to_5551.py
+	python3 tools/png_to_5551.py $@ $(IMAGE_SOURCES)
+
+clean-images:
+	rm -f $(IMAGE_HEADER)

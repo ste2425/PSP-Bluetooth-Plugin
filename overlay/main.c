@@ -156,14 +156,13 @@ int TickHandler(void)
 				}
 
 					char info_text[64];
-					int baseY = 15 + i * 36;
 
 					/* Print raw numeric values of ControllerInfo fields */
-					uint8_t percent = ctrInf.batteryLevel / 255 * 100;
-					snprintf(info_text, sizeof(info_text), "P%d %u%%",
-								 i + 1,
-								 ctrInf.batteryLevel);
-					DrawString(5, baseY, 0xC0FFFFFF, 0xFF000000, info_text);
+					uint8_t percent = (ctrInf.batteryLevel * 100) / 255;
+					snprintf(info_text, sizeof(info_text), "%u%% ", percent);
+
+					DrawImage(&ctr, 10, 0);
+					DrawString(48, 18, 0xC0FFFFFF, 0xFF000000, info_text);
 			}
 			//if (enabled)
 			//	test = BTCtrTEST();

@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <kubridge.h>
 #include "kernel.h"
+#include "generated/image_assets.h"
 
 // patch
 #define MAKE_CALL(a, f) _sw(0x0C000000 | (((u32)(f) >> 2) & 0x03FFFFFF), a);
@@ -43,6 +44,7 @@
 #define G(color) (u8)(color >> 8 & 0xFF)
 #define R(color) (u8)(color & 0xFF)
 #define BGR(color) (color & 0x00FFFFFF)
+#define BITMAP_IMAGE_SIZE 32
 
 // enum
 enum FontMode
@@ -91,6 +93,13 @@ typedef struct
 	int pixelformat;
 	void *vram;
 } DrawBuffer;
+
+typedef struct
+{
+	const u16 *pixels;
+	int width;
+	int height;
+} BitmapImage;
 
 typedef struct
 {
@@ -165,6 +174,7 @@ void ClearCaches(void);
 // graphic.c
 void DrawChar(int x, int y, u32 fg, u32 bg, int shadow, char cht);
 int DrawString(int x, int y, u32 fg, u32 bg, const char *str);
+void DrawImage(const BitmapImage *image, int x, int y);
 
 #endif
 

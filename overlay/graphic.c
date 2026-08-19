@@ -52,6 +52,44 @@ static __inline void PutPixel(int x, int y, u32 color)
 	return;
 }
 
+// ⚠️ There be AI here ⚠️
+void DrawImage(const BitmapImage *image, int x, int y)
+{
+	int dest_x, dest_y;
+	int start_x, start_y, end_x, end_y;
+	u16 *vram16;
+
+	if(image == NULL || image->pixels == NULL || image->width != BITMAP_IMAGE_SIZE || image->height != BITMAP_IMAGE_SIZE)
+		return;
+
+	start_x = x < 0 ? 0 : x;
+	start_y = y < 0 ? 0 : y;
+	end_x = x + image->width;
+	end_y = y + image->height;
+
+	if(end_x > draw_buf.width)
+		end_x = draw_buf.width;
+	if(end_y > draw_buf.height)
+		end_y = draw_buf.height;
+	if(start_x > draw_buf.width)
+		start_x = draw_buf.width;
+	if(start_y > draw_buf.height)
+		start_y = draw_buf.height;
+	if(start_x >= end_x || start_y >= end_y)
+		return;
+
+	for(dest_y = start_y; dest_y < end_y; dest_y++)
+	{
+		vram16 = (u16 *)draw_buf.vram + start_x + dest_y * draw_buf.bufferwidth;
+		for(dest_x = start_x; dest_x < end_x; dest_x++)
+		{
+			u16 pixel = image->pixels[(dest_y - y) * image->width + dest_x - x];
+			if(pixel & 0x8000)
+				vram16[dest_x - start_x] = pixel;
+		}
+	}
+}
+
 void DrawLine(int x, int y, int len)
 {
 	int i, n, v;

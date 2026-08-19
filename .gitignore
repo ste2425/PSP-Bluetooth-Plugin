@@ -38,6 +38,9 @@
 *.PBP
 *.prx
 
+# Generated image header
+overlay/generated/
+
 # The overlay uses this complete, version-specific SDK.
 !overlay/SDK/**
 

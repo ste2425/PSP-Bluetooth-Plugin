@@ -23,6 +23,20 @@ The work ive done is just a thin layer ontop of work many other people have done
 
 ---
 
+## Overlay images
+
+⚠️ This feature was 90% AI built, primarily the graphics routines. I can't for the life of me figured out Blitting. Those of you who dislike AI built code this is what you want to look at. ⚠️
+
+Put 32x32 PNG files in `overlay/assets/`. The build converts them at build time and generates C bitmap data.
+
+Draw image with:
+
+```c
+DrawImage(&image_name, x, y);
+```
+
+---
+
 ⚠️ This is very early development. Ive had it working but its unstable.
 
 ---
