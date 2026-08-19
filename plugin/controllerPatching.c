@@ -20,12 +20,18 @@ uint32_t migrate_dpad(int buttons, uint8_t dpad)
 
 // TODO add extra buttons to the mapping (home etc)
 // TODO make bit masks same as PSP so no need to map
-uint32_t migrate_buttons(int buttons, uint8_t btButtons)
+uint32_t migrate_buttons(int buttons, uint8_t btButtons, uint16_t miscButtons)
 {
     if (btButtons & BT_BUTTON_X) buttons |= SCE_CTRL_CROSS; 
     if (btButtons & BT_BUTTON_CIRCLE) buttons |= SCE_CTRL_CIRCLE;  
     if (btButtons & BT_BUTTON_SQUARE) buttons |= SCE_CTRL_SQUARE;  
     if (btButtons & BT_BUTTON_TRIANGLE) buttons |= SCE_CTRL_TRIANGLE;  
+    if (btButtons & BT_BUTTON_L1) buttons |= SCE_CTRL_L1TRIGGER;
+    if (btButtons & BT_BUTTON_R1) buttons |= SCE_CTRL_R1TRIGGER;
+
+    if (miscButtons & BT_MISC_BUTTON_SYSTEM) buttons |= SCE_CTRL_INTERCEPTED;
+    if (miscButtons & BT_MISC_BUTTON_START) buttons |= SCE_CTRL_START;
+    if (miscButtons & BT_MISC_BUTTON_SELECT) buttons |= SCE_CTRL_SELECT;
 
     return buttons;
 }
@@ -39,21 +45,21 @@ s32 ctrl_input_data_handler_func(void *pSrc, SceCtrlData2 *pDst)
     SceUInt* p_new_buttons = (SceUInt*)pSrc;
     SceUInt new_buttons = p_new_buttons != NULL ? *p_new_buttons : 0;
 
-    auto aX = 0;
-    auto aY = 0;
-    auto lX = 0;
-    auto lY = 0;
+    auto aX = 125;
+    auto aY = 125;
+    auto rX = 125;
+    auto rY = 125;
     BTCtr controllerState = BTCtrGetControllerState(0);
 
     if (controllerState.connected) {
         aX = controllerState.analogLX;
         aY = controllerState.analogLY;
 
-        lX = controllerState.analogRX;
-        lY = controllerState.analogRY;
+        rX = controllerState.analogRX;
+        rY = controllerState.analogRY;
 
         new_buttons =  migrate_dpad(new_buttons, controllerState.dpad);
-        new_buttons = migrate_buttons(new_buttons, controllerState.buttons);
+        new_buttons = migrate_buttons(new_buttons, controllerState.buttons, controllerState.miscButtons);
     }
 
     pDst->buttons = new_buttons;
@@ -68,8 +74,10 @@ s32 ctrl_input_data_handler_func(void *pSrc, SceCtrlData2 *pDst)
     pDst->TiltB = 0;
     pDst->aX = aX;
     pDst->aY = aY;
-    pDst->rsrv[0] = lX;
-    pDst->rsrv[1] = lY;
+    pDst->rX = rX;
+    pDst->rY = rY;
+    //pDst->rsrv[0] = 50;
+    //pDst->rsrv[1] = 60;
 
     // Success
     return 0;

@@ -41,33 +41,17 @@ static SceUID g_mainThreadId = -1;
 static SceUID g_sioThreadId = -1;
 static uint8_t g_sio_running = 0;
 
-// Exported methods
-// TODO review and add more
-uint8_t BtCtrDriverEnableNewConnections(uint8_t enable) {
-    if (enable) {
-        return BTCtrEnableConnections();
-    } else {
-        return BTCtrDisableConnections();
-    }
-}
 
-void BTCtrDriverSetControllerInfoPolling(bool poll) {
-    BTCtrSetControllerInfoPolling(poll);
-}
-
-uint8_t BtCtrDriverNewConnectionsEnabled() {
-    return BTCtrNewConnectionsEnabled();
-}
-
-ControllerInfo BtCtrDriverLoadControllerInfo(uint8_t controllerIndex) {
-    return BTCtrGetControllerInfo(controllerIndex);
-}
+int sceKernelRegisterResumeHandler(int reg, int (*handler)(int unk, void *param), void *param);
+int sceKernelRegisterSuspendHandler(int reg, int (*handler)(int unk, void *param), void *param);   
 
 // -------------------------------
 
 static
 int controller_polling_thread(SceSize args, void *argp)
 {
+    BTCtrSetup();
+
     while (g_sio_running) {
         //BTCtrUpdate();
         BTCtrLoop();
@@ -87,7 +71,6 @@ int start_controller_polling_thread(void)
     SceUID thid;
 
 	//sceKernelDelayThread(10 * 1000 * 1000);
-    BTCtrSetup();
 
     g_sio_running = 1;
 
@@ -202,10 +185,31 @@ int stop_controller_patching_thread(void)
 // Module Event Handlers
 //
 
+int _ResumeHandler(int unk, void *param)
+{
+
+    start_controller_polling_thread();
+
+  return 0;
+}
+
+int _SuspendHandler(int unk, void *param)
+{
+    stop_controller_polling_thread();
+
+    return 0;
+}
+
+
 // Called during module init
 // TODO add suspend/resume handling to restart SIO so PSP doesn't hang
 int module_start(SceSize args, void *argp)
 {
+
+    sceKernelRegisterSuspendHandler(0x1F, _SuspendHandler, 0);
+
+    sceKernelRegisterResumeHandler(0x1F, _ResumeHandler, 0);
+
     int result = start_controller_patching_thread();
     int polling_result = start_controller_polling_thread();
 

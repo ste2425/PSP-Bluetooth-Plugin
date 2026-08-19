@@ -10,10 +10,13 @@ PSP_EXPORT_VAR(module_info)
 PSP_EXPORT_END
              
 PSP_EXPORT_START(bt_ctr_driver, 0, 0x4001)
-PSP_EXPORT_FUNC(BtCtrDriverEnableNewConnections)
-PSP_EXPORT_FUNC(BtCtrDriverNewConnectionsEnabled)
-PSP_EXPORT_FUNC(BtCtrDriverLoadControllerInfo)
-PSP_EXPORT_FUNC(BTCtrDriverSetControllerInfoPolling)
+PSP_EXPORT_FUNC(btCtrEnableNewConnections)
+PSP_EXPORT_FUNC(btCtrNewConnectionsEnabled)
+PSP_EXPORT_FUNC(btCtrLoadControllerInfo)
+PSP_EXPORT_FUNC(btCtrSetControllerInfoPolling)
+PSP_EXPORT_FUNC(btCtrConnected)
+PSP_EXPORT_FUNC(btCtrDisconnectController)
+PSP_EXPORT_FUNC(BTCtrTEST)
 
 PSP_EXPORT_END
 

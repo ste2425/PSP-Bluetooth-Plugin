@@ -90,7 +90,7 @@ typedef struct {
 typedef struct {
     uint8_t controllerModel;
     uint8_t batteryLevel;
-    bool connected;
+    uint8_t connected;
 } ControllerInfo;
 
 void BTCtrSetup();
@@ -102,9 +102,11 @@ uint8_t BTCtrEnableConnections();
 uint8_t BTCtrDisableConnections();
 uint8_t BTCtrNewConnectionsEnabled();
 uint8_t BTCtrLoadControllerInfo(uint8_t controllerIndex);
+uint8_t BTCtrDisconnectController(uint8_t controllerInex);
 ControllerInfo BTCtrGetControllerInfo(uint8_t controllerIndex);
 void BTCTRTriggerNewConnections();
 void BTCTRTriggerNoNewConnetions();
 void BTCtrLoop();
 void BTCtrWaitLoopDelay();
 void BTCtrSetControllerInfoPolling(bool poll);
+bool BTCtrBoardConnected();

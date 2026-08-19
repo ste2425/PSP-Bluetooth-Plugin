@@ -1,16 +1,22 @@
+#PSPDEV = ./SDK
+#PSPSDK = $(PSPDEV)/psp/sdk
+
 TARGET = bt_ctr_overlay
+OBJS = main.o graphic.o exports.o libs/bt_ctr_driver.o
+
+USE_KERNEL_LIBC = 1
+USE_KERNEL_LIBS = 1
 
 BUILD_PRX = 1
+PRX_EXPORTS = exports.exp
 
-OBJS = main.o exports.o blit.o libs/bt_ctr_driver.o menu.o fonts.o stubkk.o
-
-INCDIR   = includes images
-CFLAGS = -Os -G0 -Wall
+INCDIR = 
+CFLAGS = -O2 -G0 -Wall -fno-builtin-printf
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
-LIBDIR =
 
-LIBS = -lpspkubridge -lpspctrl
+LIBDIR = 
+LIBS = -lpspkernel -lc -lpspuser -lpsprtc -lpsppower -lpspkubridge
 
 PSPSDK=$(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build_prx.mak

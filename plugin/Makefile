@@ -1,6 +1,6 @@
 TARGET = bt_ctr_driver
 
-OBJS = main.o exports.o imports.o sioDriver.o btCtr.o controllerPatching.o util.o
+OBJS = main.o exports.o imports.o sioDriver.o btCtr.o controllerPatching.o util.o public.o
 
 BUILD_PRX = 1
 PRX_EXPORTS = exports.exp

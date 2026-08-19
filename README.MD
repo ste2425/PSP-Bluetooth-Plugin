@@ -11,6 +11,7 @@ The work ive done is just a thin layer ontop of work many other people have done
 * X41 - Shared with me an initial working SIO hello world app back when i could barely compile PSP code. This was invaluable in helping me get the hardware working right at the start of the project.
 * PSP Homebrew Discord - Full of incredibly smart and helpful people too many to list individually. Without their help I'd never have managed to complete any of this.
 * Images/Icons from https://icons8.com
+* Lusid1 and SolubleShoe for their work on `DayViewr_game` and `Dayviewer` which the overlay plugin is a fork of. Without them i wouldn't have been able to build that.
 
 **Features:**
 

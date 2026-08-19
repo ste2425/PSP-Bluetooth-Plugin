@@ -19,6 +19,7 @@ bool disableNewConnectionsPending = false;
 bool connectionsCurrentlyEnabled = false;
 bool getConnectionsState = false;
 bool pollControllerInfo = false;
+bool boardConnected = false;
 
 //
 // Hoists
@@ -33,6 +34,14 @@ uint8_t sendCommand(
 );
 void loadControllerData(uint8_t controllerIndex);
 
+static void setDefaultLiveControllerState(void) {
+    for (uint8_t i = 0; i < BTCTR_CONTROLLER_COUNT; ++i) {
+        liveControllerState[i].controllerModel = (uint8_t)CONTROLLER_TYPE_None;
+        liveControllerState[i].batteryLevel = 12;
+        liveControllerState[i].connected = 0;
+    }
+}
+
 int	snprintf (char *__restrict, size_t, const char *__restrict, ...)
                _ATTRIBUTE ((__format__ (__printf__, 3, 4)));
 
@@ -41,6 +50,7 @@ void BTCtrSetControllerInfoPolling(bool poll) {
 }
 
 void BTCtrSetup() {
+    setDefaultLiveControllerState();
     pspUARTInit(38400);
 }
 
@@ -52,6 +62,10 @@ void BTCtrUpdate() {
     for (uint8_t i = 0; i < BTCTR_CONTROLLER_COUNT; ++i) {
         loadControllerData(i);
     }
+}
+
+bool BTCtrBoardConnected() {
+    return boardConnected;
 }
 
 void BTCTRTriggerNewConnections() {
@@ -102,11 +116,11 @@ uint8_t BTCtrLoadControllerInfo(uint8_t controllerIndex) {
     );
 
     if (response == RESPONSE_INFO_OK) {
-        liveControllerState[controllerIndex].connected = true;
+        liveControllerState[controllerIndex].connected = 1;
         liveControllerState[controllerIndex].controllerModel = responseBuffer[0];
         liveControllerState[controllerIndex].batteryLevel = responseBuffer[1];
     } else if (response == RESPONSE_CONTROLLER_NOT_FOUND) {
-        liveControllerState[controllerIndex].connected = false;
+        liveControllerState[controllerIndex].connected = 0;
         liveControllerState[controllerIndex].batteryLevel = 0;
         liveControllerState[controllerIndex].controllerModel = CONTROLLER_TYPE_None;
     }
@@ -156,7 +170,7 @@ void loadControllerData(uint8_t controllerIndex) {
     liveControllers[controllerIndex].connected = false;
 }   
 
-uint8_t _sendCommand(
+uint8_t sendCommand(
     uint8_t command, 
     uint8_t* commandArguments, 
     uint8_t commandArgumentsSize, 
@@ -164,6 +178,7 @@ uint8_t _sendCommand(
     int* responseBuffer, 
     int responseSize
 ) {
+   // boardConnected = false;
 
     //sceKernelWaitSema(commandSemaId, 1, NULL);
     pspUARTResetRingBuffer();
@@ -190,7 +205,13 @@ uint8_t _sendCommand(
         responseBuffer == nullptr ||
         responseSize == 0
     ) {
-    //sceKernelSignalSema(commandSemaId, 1);
+        // TODO - maybe handle unexpected data, some random serial device connected?
+        boardConnected = status != -1;
+        //sceKernelSignalSema(commandSemaId, 1);
+
+        if (!boardConnected)
+            setDefaultLiveControllerState();
+            
         return status;
     }
 
@@ -198,7 +219,7 @@ uint8_t _sendCommand(
 
     // not enough response data returned, error
     if (recievedDataCount < responseSize) {
-    //sceKernelSignalSema(commandSemaId, 1);
+        //sceKernelSignalSema(commandSemaId, 1);
         return RESONSE_NOT_ENOUGH_DATA_RETURNED;
     }
 
@@ -207,31 +228,29 @@ uint8_t _sendCommand(
         responseBuffer[i] = pspUARTRead();
     }
 
+    boardConnected = true;
+
     //sceKernelSignalSema(commandSemaId, 1);
     return status;
 }
 
-uint8_t sendCommand(
-    uint8_t command, 
-    uint8_t* commandArguments, 
-    uint8_t commandArgumentsSize, 
-    uint8_t successResponseCode, 
-    int* responseBuffer, 
-    int responseSize
-) 
-{
-        auto result = _sendCommand(
-            command,
-            commandArguments,
-            commandArgumentsSize,
-            successResponseCode,
-            responseBuffer,
-            responseSize
-        );
-
-    return result;
+int BTCtrTEST() {
+    return 98;
 }
 
+
+uint8_t BTCtrDisconnectController(uint8_t controllerIndex) {
+    uint8_t commandArgs[1] = {controllerIndex};
+
+    uint8_t response = sendCommand(
+        COMMAND_DISCONNECTCONTROLLER,
+        commandArgs, 1,
+        RESPONSE_DISCONNECT_OK,
+        nullptr, 0
+    );
+
+    return response;
+}
 
 uint8_t BTCtrEnableConnections() {
     uint8_t response = sendCommand(
