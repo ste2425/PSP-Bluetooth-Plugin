@@ -25,7 +25,7 @@ jobs:
     #  run: cd overlay && ./compile.sh
 
     - name: Compile Plugin
-      run: cd pluin && make
+      run: cd plugin && make
 
     - name: Prepare artifact folder
       run: |
